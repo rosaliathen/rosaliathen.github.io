@@ -602,28 +602,36 @@ async function loadAllData(){
 }
 
 async function upsertRows(csvRows){
-  // Supabase upsert: insert or update on conflict (case_number, item)
   const dbRows = csvRows.map(toSupabaseRow);
+  console.log('Upsert: ' + dbRows.length + ' rows prepared. Sample:', JSON.stringify(dbRows[0]));
   const batchSize = 500;
   let totalUpserted = 0;
   
   for(let i = 0; i < dbRows.length; i += batchSize){
     const batch = dbRows.slice(i, i + batchSize);
-    const res = await fetch(SUPABASE_URL + '/rest/v1/project_lines', {
-      method: 'POST',
-      headers: {
-        ...supabaseHeaders,
-        'Prefer': 'resolution=merge-duplicates,return=minimal'
-      },
-      body: JSON.stringify(batch)
-    });
-    if(!res.ok){
-      const err = await res.text();
-      console.error('Upsert error:', err);
-      showToast('Error saving batch — check console');
+    try {
+      const res = await fetch(SUPABASE_URL + '/rest/v1/project_lines', {
+        method: 'POST',
+        headers: {
+          ...supabaseHeaders,
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify(batch)
+      });
+      if(!res.ok){
+        const err = await res.text();
+        console.error('Upsert error (HTTP ' + res.status + '):', err);
+        // Try to extract the useful message
+        try { const j = JSON.parse(err); showToast('DB Error: ' + (j.message || j.details || err).substring(0,100)); }
+        catch(e){ showToast('DB Error: ' + err.substring(0,100)); }
+        return false;
+      }
+      totalUpserted += batch.length;
+    } catch(e){
+      console.error('Fetch error:', e);
+      showToast('Network error: ' + e.message);
       return false;
     }
-    totalUpserted += batch.length;
   }
   return totalUpserted;
 }
@@ -668,11 +676,26 @@ function cleanDate(v){
   const s = String(v).trim();
   // Already YYYY-MM-DD
   if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
-  // MM/DD/YYYY → YYYY-MM-DD
+  // Parse X/Y/YYYY — smart detect MM/DD vs DD/MM
   const parts = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if(parts) return parts[3] + '-' + parts[1].padStart(2,'0') + '-' + parts[2].padStart(2,'0');
-  // DD/MM/YYYY fallback — skip, ambiguous
-  return s;
+  if(parts){
+    const a = parseInt(parts[1]); // first number
+    const b = parseInt(parts[2]); // second number
+    const year = parts[3];
+    let month, day;
+    if(a > 12){
+      // First number > 12 → MUST be DD/MM/YYYY (e.g. 22/3/2026)
+      day = a; month = b;
+    } else if(b > 12){
+      // Second number > 12 → MUST be MM/DD/YYYY (e.g. 10/18/2025)
+      month = a; day = b;
+    } else {
+      // Ambiguous (both ≤ 12) → default MM/DD/YYYY (Excel US format)
+      month = a; day = b;
+    }
+    return year + '-' + String(month).padStart(2,'0') + '-' + String(day).padStart(2,'0');
+  }
+  return '';
 }
 
 function normalizeRow(r){
