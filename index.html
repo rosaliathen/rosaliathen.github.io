@@ -183,8 +183,8 @@ const distinctCount = (arr,k) => new Set(arr.map(r=>r[k]).filter(Boolean)).size;
 const STATUS_META = {
   'Cotizado':{color:'#22C55E',order:1},
   'Costeado':{color:'#3B82F6',order:2},
-  'Preparando RFQ':{color:'#F59E0B',order:3},
-  'Cotizacion solicitada a proveedor':{color:'#EF4444',order:4}
+  'Cotizacion solicitada a proveedor':{color:'#F59E0B',order:3},
+  'Preparando RFQ':{color:'#EF4444',order:4}
 };
 
 // ======================== FILTERS ========================
@@ -352,8 +352,8 @@ function renderPM(d){
       <div style="margin-top:10px;height:4px;background:var(--card);border-radius:2px;overflow:hidden;display:flex">
         <div style="width:${s.lines?s.cotizado/s.lines*100:0}%;background:#22C55E"></div>
         <div style="width:${s.lines?s.costeado/s.lines*100:0}%;background:#3B82F6"></div>
-        <div style="width:${s.lines?s.rfq/s.lines*100:0}%;background:#F59E0B"></div>
-        <div style="width:${s.lines?s.solicitada/s.lines*100:0}%;background:#EF4444"></div>
+        <div style="width:${s.lines?s.solicitada/s.lines*100:0}%;background:#F59E0B"></div>
+        <div style="width:${s.lines?s.rfq/s.lines*100:0}%;background:#EF4444"></div>
       </div>
     </div>`;
   }).join('');
@@ -379,8 +379,8 @@ function renderPM(d){
     data:{labels:pmLabels, datasets:[
       {label:'Cotizado', data:sortedPMs.map(e=>e[1].cotizado), backgroundColor:'#22C55E', borderRadius:2},
       {label:'Costeado', data:sortedPMs.map(e=>e[1].costeado), backgroundColor:'#3B82F6', borderRadius:2},
-      {label:'Preparando RFQ', data:sortedPMs.map(e=>e[1].rfq), backgroundColor:'#F59E0B', borderRadius:2},
-      {label:'Quote requested', data:sortedPMs.map(e=>e[1].solicitada), backgroundColor:'#EF4444', borderRadius:2}
+      {label:'Quote requested', data:sortedPMs.map(e=>e[1].solicitada), backgroundColor:'#F59E0B', borderRadius:2},
+      {label:'Preparando RFQ', data:sortedPMs.map(e=>e[1].rfq), backgroundColor:'#EF4444', borderRadius:2}
     ]},
     options:{responsive:true, maintainAspectRatio:false,
       plugins:{legend:{position:'bottom', labels:{usePointStyle:true, pointStyle:'rectRounded', boxWidth:10, padding:12, font:{size:10, family:'DM Sans'}, color:'#94A3B8'}}},
