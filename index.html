@@ -93,6 +93,22 @@ tbody tr:hover td{background:rgba(59,130,246,.04);color:var(--text)}
 .pipe-label{width:100px;font-size:.7rem}
 }
 
+/* Recent Opps */
+.opp-card{background:var(--bg2);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;transition:border-color .2s}
+.opp-card:hover{border-color:var(--blue)}
+.opp-left{flex:1;min-width:0}
+.opp-name{font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opp-meta{font-size:.72rem;color:var(--text3);margin-top:3px;font-family:var(--mono)}
+.opp-right{display:flex;gap:12px;align-items:center;flex-shrink:0}
+.opp-stat{text-align:center}
+.opp-stat-val{font-size:1.1rem;font-weight:700}
+.opp-stat-label{font-size:.62rem;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.opp-pm{font-size:.72rem;padding:4px 10px;border-radius:12px;font-weight:500;white-space:nowrap}
+.opp-pm.assigned{background:var(--blue-bg);color:var(--blue)}
+.opp-pm.unassigned{background:var(--red-bg);color:var(--red)}
+.opp-grid{display:flex;flex-direction:column;gap:8px}
+.opp-empty{color:var(--text3);font-size:.82rem;padding:20px 0;text-align:center}
+
 /* Toast */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 22px;border-radius:var(--radius-sm);font-size:.82rem;font-weight:500;transform:translateY(80px);opacity:0;transition:all .35s;z-index:99}
 .toast.show{transform:translateY(0);opacity:1}
@@ -107,7 +123,7 @@ tbody tr:hover td{background:rgba(59,130,246,.04);color:var(--text)}
 <div class="app">
   <div class="header">
     <div style="display:flex;align-items:center;gap:14px">
-      <img src="data:image/png;base64,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" alt="Altron" style="height:30px">
+      <img src="logo.png" alt="Altron" style="height:30px;filter:brightness(0) invert(1)">
       <h1 style="font-size:1.1rem;font-weight:500;color:var(--text2)">Avance de Proyectos</h1>
     </div>
     <div class="header-right">
@@ -163,6 +179,16 @@ tbody tr:hover td{background:rgba(59,130,246,.04);color:var(--text)}
         <div class="chart-wrap"><canvas id="chartPMpv"></canvas></div>
         <div class="chart-wrap"><canvas id="chartPMstatus"></canvas></div>
       </div>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card full">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0">New opportunities — last 7 days</h3>
+        <div class="badge" id="recentCount">0 new</div>
+      </div>
+      <div id="recentOpps"></div>
     </div>
   </div>
 
@@ -239,6 +265,7 @@ function render(){
   renderChartTrend(d);
   renderChartCat(d);
   renderPM(d);
+  renderRecentOpps(d);
   renderTable(d);
 }
 
@@ -398,6 +425,65 @@ function renderPM(d){
       plugins:{legend:{position:'bottom', labels:{usePointStyle:true, pointStyle:'rectRounded', boxWidth:10, padding:12, font:{size:10, family:'DM Sans'}, color:'#94A3B8'}}},
       scales:{x:{stacked:true, grid:{display:false}, ticks:{color:'#94A3B8'}}, y:{stacked:true, grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#64748B'}}}}
   });
+}
+
+function renderRecentOpps(d){
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  
+  // Group by Oportunidad, only include lines created in last 7 days
+  const recent = {};
+  d.forEach(r => {
+    const dateStr = r['Fecha creacion'];
+    if(!dateStr) return;
+    const date = new Date(dateStr);
+    if(isNaN(date.getTime()) || date < sevenDaysAgo) return;
+    
+    const opp = r['Oportunidad'] || 'Sin oportunidad';
+    if(!recent[opp]) recent[opp] = { lines: 0, pms: new Set(), cases: new Set(), empresa: '', date: dateStr, pv: 0 };
+    recent[opp].lines++;
+    recent[opp].pv += (parseFloat(r['PV Extendido']) || 0);
+    recent[opp].cases.add(r['Case #']);
+    recent[opp].empresa = r['Empresa que cotiza'] || recent[opp].empresa;
+    const pm = r['Project Manager'];
+    if(pm) recent[opp].pms.add(pm);
+  });
+
+  const sorted = Object.entries(recent).sort((a,b) => b[1].lines - a[1].lines);
+  const container = document.getElementById('recentOpps');
+  const countBadge = document.getElementById('recentCount');
+  
+  countBadge.textContent = sorted.length + ' new';
+
+  if(sorted.length === 0){
+    container.innerHTML = '<div class="opp-empty">No new opportunities in the last 7 days</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="opp-grid">' + sorted.map(([opp, s]) => {
+    const pmList = s.pms.size > 0 ? Array.from(s.pms).join(', ') : null;
+    const unassignedCount = s.pms.size === 0 ? s.lines : 0;
+    
+    return `<div class="opp-card">
+      <div class="opp-left">
+        <div class="opp-name">${opp}</div>
+        <div class="opp-meta">${s.empresa} · ${Array.from(s.cases).join(', ')} · ${s.date}</div>
+      </div>
+      <div class="opp-right">
+        <div class="opp-stat">
+          <div class="opp-stat-val">${s.lines}</div>
+          <div class="opp-stat-label">Lines</div>
+        </div>
+        <div class="opp-stat">
+          <div class="opp-stat-val">${fmt$(s.pv)}</div>
+          <div class="opp-stat-label">PV</div>
+        </div>
+        ${pmList 
+          ? `<span class="opp-pm assigned">${pmList}</span>` 
+          : `<span class="opp-pm unassigned">${unassignedCount} unassigned</span>`}
+      </div>
+    </div>`;
+  }).join('') + '</div>';
 }
 
 function renderTable(d){
