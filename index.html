@@ -793,17 +793,27 @@ function handleCSV(file, mode){
 
 document.getElementById('csvMerge').addEventListener('change', function(e){
   const file = e.target.files[0];
+  if(!file) return;
   e.target.value = '';
-  if(file) handleCSV(file, 'merge');
+  handleCSV(file, 'merge');
 });
 
 // ======================== REPLACE PASSWORD ========================
 const REPLACE_PASSWORD = 'altron2026';
 
 function requestReplace(){
-  const pw = prompt('This will DELETE all existing data.\n\nEnter the admin password to continue:');
-  if(pw === null) return;
-  if(pw !== REPLACE_PASSWORD){
+  // Open file picker first (while we still have user gesture)
+  document.getElementById('csvReplace').click();
+}
+
+document.getElementById('csvReplace').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  e.target.value = '';
+  
+  // Now ask for password AFTER file is selected
+  const pw = prompt('This will DELETE all existing data and replace it.\n\nEnter the admin password to continue:');
+  if(pw === null || pw !== REPLACE_PASSWORD){
     showToast('Incorrect password — Replace cancelled');
     return;
   }
@@ -812,13 +822,7 @@ function requestReplace(){
     showToast('Replace cancelled');
     return;
   }
-  document.getElementById('csvReplace').click();
-}
-
-document.getElementById('csvReplace').addEventListener('change', function(e){
-  const file = e.target.files[0];
-  e.target.value = '';
-  if(file) handleCSV(file, 'replace');
+  handleCSV(file, 'replace');
 });
 
 function exportCSV(){
