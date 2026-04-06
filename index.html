@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -130,14 +131,14 @@ tbody tr:hover td{background:rgba(59,130,246,.04);color:var(--text)}
       <div class="badge" id="lastUpdate">91 records</div>
       <label class="upload-btn" for="csvMerge" title="Merge new rows into existing data (match by ID Project + Item)">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-        Merge CSV
+        Merge
       </label>
-      <input type="file" id="csvMerge" accept=".csv,.tsv,.txt" style="display:none">
+      <input type="file" id="csvMerge" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
       <button class="upload-btn" onclick="requestReplace()" title="Replace all data with this file (password required)" style="opacity:.7">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         Replace
       </button>
-      <input type="file" id="csvReplace" accept=".csv,.tsv,.txt" style="display:none">
+      <input type="file" id="csvReplace" accept=".csv,.tsv,.txt,.xlsx,.xls" style="display:none">
       <button class="upload-btn" onclick="exportCSV()" title="Download current data as CSV">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V4"/></svg>
         Export
@@ -803,32 +804,56 @@ function isSupabaseConfigured(){
 
 function handleCSV(file, mode){
   showToast('Reading file...');
+  const isExcel = /\.(xlsx|xls)$/i.test(file.name);
   const reader = new FileReader();
-  reader.onload = function(e){
-    const text = e.target.result;
-    console.log('File read OK, length:', text.length);
-    
-    const results = Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      delimiter: '',
-      trimHeaders: true,
-    });
 
-    
-    if(!results.data || results.data.length === 0){
-      showToast('Error: CSV is empty or could not be parsed');
-      console.error('Parse errors:', results.errors);
-      return;
+  function processRows(rawRows) {
+    if(!rawRows || rawRows.length === 0){
+      showToast('Error: archivo vacío o no se pudo leer');
+      return null;
     }
-    
-    console.log('Parsed', results.data.length, 'rows. Delimiter:', JSON.stringify(results.meta.delimiter), 'Fields:', results.meta.fields);
-    
-    const newRows = results.data.map((r) => {
+    const newRows = rawRows.map((r) => {
       const row = normalizeRow(r);
-      row._linea_num = rowContentHash(row); // stable hash: same row = same ID
+      row._linea_num = rowContentHash(row);
       return row;
     });
+    console.log('Parsed', newRows.length, 'rows. Sample:', JSON.stringify(newRows[0]));
+    return newRows;
+  }
+
+  reader.onload = function(e){
+    let newRows;
+
+    if(isExcel){
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { defval: '', raw: false });
+        newRows = processRows(raw);
+      } catch(err){
+        showToast('Error leyendo Excel: ' + err.message);
+        console.error(err);
+        return;
+      }
+    } else {
+      const text = isExcel ? '' : new TextDecoder('utf-8').decode(e.target.result);
+      console.log('File read OK, length:', text.length);
+      const results = Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        delimiter: '',
+        trimHeaders: true,
+      });
+      if(!results.data || results.data.length === 0){
+        showToast('Error: CSV vacío o no se pudo parsear');
+        console.error('Parse errors:', results.errors);
+        return;
+      }
+      console.log('Parsed', results.data.length, 'rows. Delimiter:', JSON.stringify(results.meta.delimiter));
+      newRows = processRows(results.data);
+    }
+
+    if(!newRows) return;
     console.log('Sample cleaned row:', JSON.stringify(newRows[0]));
 
     if(isSupabaseConfigured()){
@@ -875,7 +900,8 @@ function handleCSV(file, mode){
     }
   };
   reader.onerror = function(){ showToast('Error reading file'); };
-  reader.readAsText(file, 'UTF-8');
+  if(isExcel) reader.readAsArrayBuffer(file);
+  else reader.readAsText(file, 'UTF-8');
 }
 
 document.getElementById('csvMerge').addEventListener('change', function(e){
