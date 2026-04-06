@@ -64,7 +64,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 /* Status pipeline */
 .pipeline{display:flex;flex-direction:column;gap:12px}
 .pipe-item{display:flex;align-items:center;gap:14px}
-.pipe-label{width:180px;font-size:.78rem;color:var(--text2);flex-shrink:0;text-align:right}
+.pipe-label{width:280px;font-size:.72rem;color:var(--text2);flex-shrink:0;text-align:right}
 .pipe-track{flex:1;height:28px;background:var(--bg2);border-radius:6px;overflow:hidden;position:relative}
 .pipe-fill{height:100%;border-radius:6px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-size:.7rem;font-weight:600;color:#fff;font-family:var(--mono);transition:width .6s ease}
 .pipe-count{min-width:30px;text-align:center;font-size:.78rem;font-weight:600;font-family:var(--mono);color:var(--text)}
@@ -128,7 +128,7 @@ tbody tr:hover td{background:rgba(59,130,246,.04);color:var(--text)}
     </div>
     <div class="header-right">
       <div class="badge" id="lastUpdate">91 records</div>
-      <label class="upload-btn" for="csvMerge" title="Merge new rows into existing data (match by Case # + Item)">
+      <label class="upload-btn" for="csvMerge" title="Merge new rows into existing data (match by ID Project + Item)">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
         Merge CSV
       </label>
@@ -219,10 +219,14 @@ const count = (arr,k,v) => arr.filter(r=>r[k]===v).length;
 const distinctCount = (arr,k) => new Set(arr.map(r=>r[k]).filter(Boolean)).size;
 
 const STATUS_META = {
-  'Cotizado':{color:'#22C55E',order:1},
-  'Costeado':{color:'#3B82F6',order:2},
-  'Cotizacion solicitada a proveedor':{color:'#F59E0B',order:3},
-  'Preparando RFQ':{color:'#EF4444',order:4}
+  'Presupuesto entregado a cliente':{color:'#22C55E',order:1},
+  'Cotización a cliente preparada':{color:'#10B981',order:2},
+  'Precio aprobado (revisión interna CEO)':{color:'#3B82F6',order:3},
+  'Analizado y costeado':{color:'#6366F1',order:4},
+  'RFQ / RFP cotizado por proveedor':{color:'#8B5CF6',order:5},
+  'RFQ / RFP enviado a proveedor':{color:'#F59E0B',order:6},
+  'RFQ / RFP preparado para enviar a proveedor':{color:'#F97316',order:7},
+  'Informacion incompleta':{color:'#EF4444',order:8}
 };
 
 // ======================== FILTERS ========================
@@ -278,12 +282,17 @@ function renderKPIs(d){
   const margenReal = pvReal > 0 ? (pvReal-ccReal)/pvReal : 0;
   const avgAge = d.length ? (d.reduce((a,r)=>a+(parseFloat(r['Antigüedad'])||0),0)/d.length) : 0;
 
+  const deliveredCount = d.filter(r => {
+    const s = r['Status de linea'];
+    return s === 'Presupuesto entregado a cliente' || s === 'Cotización a cliente preparada';
+  }).length;
+
   document.getElementById('kpis').innerHTML = `
-    <div class="kpi"><div class="kpi-label">Total Cases</div><div class="kpi-value">${distinctCount(d,'Case #')}</div><div class="kpi-sub">${distinctCount(d,'Oportunidad')} opportunities · ${d.length} lines</div></div>
+    <div class="kpi"><div class="kpi-label">Total Cases</div><div class="kpi-value">${distinctCount(d,'ID Project + Case #')}</div><div class="kpi-sub">${distinctCount(d,'Oportunidad')} opportunities · ${d.length} lines</div></div>
     <div class="kpi"><div class="kpi-label">Total PV</div><div class="kpi-value">${fmt$(totalPV)}</div><div class="kpi-sub">Cost: ${fmt$(totalCC)}</div></div>
     <div class="kpi"><div class="kpi-label">Real Margin %</div><div class="kpi-value" style="color:${margenReal>=0?'var(--green)':'var(--red)'}">${fmtPct(margenReal)}</div><div class="kpi-sub">${d.length - withPV.length} lines without PV</div></div>
     <div class="kpi"><div class="kpi-label">Avg Age</div><div class="kpi-value">${Math.round(avgAge)} days</div><div class="kpi-sub">${d.length} records</div></div>
-    <div class="kpi"><div class="kpi-label">Pipeline Progress</div><div class="kpi-value">${fmtPct(count(d,'Status de linea','Cotizado')/Math.max(d.length,1))}</div><div class="kpi-sub">${count(d,'Status de linea','Cotizado')} quoted of ${d.length}</div></div>
+    <div class="kpi"><div class="kpi-label">Pipeline Progress</div><div class="kpi-value">${fmtPct(deliveredCount/Math.max(d.length,1))}</div><div class="kpi-sub">${deliveredCount} delivered of ${d.length}</div></div>
   `;
 }
 
@@ -294,7 +303,7 @@ function renderPipeline(d){
     const c = count(d,'Status de linea',s);
     const pct = Math.max((c/max)*100,2);
     return `<div class="pipe-item">
-      <div class="pipe-label">${s === 'Cotizacion solicitada a proveedor' ? 'Quote requested' : s}</div>
+      <div class="pipe-label">${s}</div>
       <div class="pipe-track"><div class="pipe-fill" style="width:${pct}%;background:${STATUS_META[s].color}">${c}</div></div>
     </div>`;
   }).join('');
@@ -356,45 +365,51 @@ function renderChartCat(d){
 }
 
 function renderPM(d){
-  const pmColors = {'Daniel Robles':'#3B82F6','Luisa Cruz':'#22C55E','Marlene Minaya':'#A78BFA'};
+  const pmColors = {'Daniel Robles':'#3B82F6','Luisa Cruz':'#22C55E','Marlene Minaya':'#A78BFA','Elin Then':'#F59E0B'};
   const defaultColors = ['#3B82F6','#22C55E','#A78BFA','#F59E0B','#EF4444','#EC4899','#06B6D4','#64748B'];
+  const statusKeys = Object.keys(STATUS_META).sort((a,b)=>STATUS_META[a].order - STATUS_META[b].order);
+  // "Delivered" statuses = first 2 in pipeline (most advanced)
+  const deliveredStatuses = statusKeys.slice(0,2);
+
   const pms = {};
   d.forEach(r => {
     const pm = r['Project Manager'] || 'Unassigned';
-    if(!pms[pm]) pms[pm] = {lines:0, pv:0, cc:0, cases:new Set(), cotizado:0, costeado:0, rfq:0, solicitada:0};
+    if(!pms[pm]) pms[pm] = {lines:0, pv:0, cc:0, cases:new Set(), statusCounts:{}};
     pms[pm].lines++;
     pms[pm].pv += (parseFloat(r['PV Extendido'])||0);
     pms[pm].cc += (parseFloat(r['CC Extendido'])||0);
-    pms[pm].cases.add(r['Case #']);
-    const s = r['Status de linea'];
-    if(s==='Cotizado') pms[pm].cotizado++;
-    else if(s==='Costeado') pms[pm].costeado++;
-    else if(s==='Preparando RFQ') pms[pm].rfq++;
-    else pms[pm].solicitada++;
+    pms[pm].cases.add(r['ID Project + Case #']);
+    const s = r['Status de linea'] || 'Sin status';
+    pms[pm].statusCounts[s] = (pms[pm].statusCounts[s]||0) + 1;
   });
 
-  // PM summary cards
   const sortedPMs = Object.entries(pms).sort((a,b)=>b[1].pv-a[1].pv);
+  
+  // PM summary cards
   document.getElementById('pmCards').innerHTML = sortedPMs.map(([pm, s],i) => {
     const col = pmColors[pm] || defaultColors[i % defaultColors.length];
-    const quotePct = s.lines > 0 ? Math.round((s.cotizado/s.lines)*100) : 0;
-    return `<div style="background:var(--bg2);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:16px 18px;border-left:3px solid ${col}">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div style="font-weight:600;font-size:.9rem">${pm}</div>
-        <div style="font-size:.68rem;font-family:var(--mono);color:var(--text3)">${s.cases.size} cases</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:.75rem">
-        <div><div style="color:var(--text3);font-size:.65rem;margin-bottom:2px">PV Total</div><div style="font-weight:600;color:${col}">${fmt$(s.pv)}</div></div>
-        <div><div style="color:var(--text3);font-size:.65rem;margin-bottom:2px">Lines</div><div style="font-weight:600">${s.lines}</div></div>
-        <div><div style="color:var(--text3);font-size:.65rem;margin-bottom:2px">Quoted</div><div style="font-weight:600;color:var(--green)">${quotePct}%</div></div>
-      </div>
-      <div style="margin-top:10px;height:4px;background:var(--card);border-radius:2px;overflow:hidden;display:flex">
-        <div style="width:${s.lines?s.cotizado/s.lines*100:0}%;background:#22C55E"></div>
-        <div style="width:${s.lines?s.costeado/s.lines*100:0}%;background:#3B82F6"></div>
-        <div style="width:${s.lines?s.solicitada/s.lines*100:0}%;background:#F59E0B"></div>
-        <div style="width:${s.lines?s.rfq/s.lines*100:0}%;background:#EF4444"></div>
-      </div>
-    </div>`;
+    const deliveredCount = deliveredStatuses.reduce((acc,st) => acc + (s.statusCounts[st]||0), 0);
+    const deliveredPct = s.lines > 0 ? Math.round((deliveredCount/s.lines)*100) : 0;
+    
+    // Build mini status bar dynamically
+    const miniBar = statusKeys.map(st => {
+      const cnt = s.statusCounts[st]||0;
+      const w = s.lines ? (cnt/s.lines*100) : 0;
+      return w > 0 ? '<div style="width:'+w+'%;background:'+STATUS_META[st].color+'"></div>' : '';
+    }).join('');
+
+    return '<div style="background:var(--bg2);border:1px solid var(--card-border);border-radius:var(--radius-sm);padding:16px 18px;border-left:3px solid '+col+'">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+        '<div style="font-weight:600;font-size:.9rem">'+pm+'</div>' +
+        '<div style="font-size:.68rem;font-family:var(--mono);color:var(--text3)">'+s.cases.size+' cases</div>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:.75rem">' +
+        '<div><div style="color:var(--text3);font-size:.65rem;margin-bottom:2px">PV Total</div><div style="font-weight:600;color:'+col+'">'+fmt$(s.pv)+'</div></div>' +
+        '<div><div style="color:var(--text3);font-size:.65rem;margin-bottom:2px">Lines</div><div style="font-weight:600">'+s.lines+'</div></div>' +
+        '<div><div style="color:var(--text3);font-size:.65rem;margin-bottom:2px">Delivered</div><div style="font-weight:600;color:var(--green)">'+deliveredPct+'%</div></div>' +
+      '</div>' +
+      '<div style="margin-top:10px;height:4px;background:var(--card);border-radius:2px;overflow:hidden;display:flex">' + miniBar + '</div>' +
+    '</div>';
   }).join('');
 
   // PM PV chart (bar)
@@ -411,18 +426,20 @@ function renderPM(d){
       scales:{x:{grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#64748B',callback:v=>fmt$(v)}}, y:{grid:{display:false}, ticks:{color:'#94A3B8',font:{size:12}}}}}
   });
 
-  // PM status stacked chart
+  // PM status stacked chart — dynamic from STATUS_META
+  const datasets = statusKeys.map(st => ({
+    label: st.length > 30 ? st.substring(0,28)+'...' : st,
+    data: sortedPMs.map(e => e[1].statusCounts[st]||0),
+    backgroundColor: STATUS_META[st].color,
+    borderRadius: 2
+  }));
+
   if(charts.pmStatus) charts.pmStatus.destroy();
   charts.pmStatus = new Chart(document.getElementById('chartPMstatus'),{
     type:'bar',
-    data:{labels:pmLabels, datasets:[
-      {label:'Cotizado', data:sortedPMs.map(e=>e[1].cotizado), backgroundColor:'#22C55E', borderRadius:2},
-      {label:'Costeado', data:sortedPMs.map(e=>e[1].costeado), backgroundColor:'#3B82F6', borderRadius:2},
-      {label:'Quote requested', data:sortedPMs.map(e=>e[1].solicitada), backgroundColor:'#F59E0B', borderRadius:2},
-      {label:'Preparando RFQ', data:sortedPMs.map(e=>e[1].rfq), backgroundColor:'#EF4444', borderRadius:2}
-    ]},
+    data:{labels:pmLabels, datasets},
     options:{responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom', labels:{usePointStyle:true, pointStyle:'rectRounded', boxWidth:10, padding:12, font:{size:10, family:'DM Sans'}, color:'#94A3B8'}}},
+      plugins:{legend:{position:'bottom', labels:{usePointStyle:true, pointStyle:'rectRounded', boxWidth:10, padding:8, font:{size:9, family:'DM Sans'}, color:'#94A3B8'}}},
       scales:{x:{stacked:true, grid:{display:false}, ticks:{color:'#94A3B8'}}, y:{stacked:true, grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:'#64748B'}}}}
   });
 }
@@ -443,7 +460,7 @@ function renderRecentOpps(d){
     if(!recent[opp]) recent[opp] = { lines: 0, pms: new Set(), cases: new Set(), empresa: '', date: dateStr, pv: 0 };
     recent[opp].lines++;
     recent[opp].pv += (parseFloat(r['PV Extendido']) || 0);
-    recent[opp].cases.add(r['Case #']);
+    recent[opp].cases.add(r['ID Project + Case #']);
     recent[opp].empresa = r['Empresa que cotiza'] || recent[opp].empresa;
     const pm = r['Project Manager'];
     if(pm) recent[opp].pms.add(pm);
@@ -487,14 +504,16 @@ function renderRecentOpps(d){
 }
 
 function renderTable(d){
-  const cols = ['Case #','Oportunidad','Project Manager','Empresa que cotiza','Categoria','Item','Cantidad','PV Extendido','CC Extendido','Status de linea'];
+  const cols = ['ID Project + Case #','Oportunidad','Project Manager','Empresa que cotiza','Categoria','Item','Cantidad','PV Extendido','CC Extendido','Status de linea'];
   document.getElementById('thead').innerHTML = '<tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr>';
   document.getElementById('tbody').innerHTML = d.slice(0,50).map(r => {
-    const statusClass = r['Status de linea']==='Cotizado'?'status-cotizado':
-      r['Status de linea']==='Costeado'?'status-costeado':
-      r['Status de linea']==='Preparando RFQ'?'status-rfq':'status-solicitada';
     return '<tr>'+cols.map(c => {
-      if(c==='Status de linea') return `<td><span class="status-tag ${statusClass}">${r[c]}</span></td>`;
+      if(c==='Status de linea'){
+        const st = r[c] || '';
+        const meta = STATUS_META[st];
+        const color = meta ? meta.color : '#64748B';
+        return '<td><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:.68rem;font-weight:500;background:'+color+'20;color:'+color+'">'+st+'</span></td>';
+      }
       if(c==='PV Extendido'||c==='CC Extendido') return `<td>$${(parseFloat(r[c])||0).toLocaleString()}</td>`;
       return `<td>${r[c]||'—'}</td>`;
     }).join('')+'</tr>';
@@ -515,7 +534,7 @@ const supabaseHeaders = {
 
 // Column mapping: CSV header → Supabase column
 const COL_MAP = {
-  'Case #':'case_number','Item':'item','Fecha creacion':'fecha_creacion',
+  'ID Project + Case #':'id_project','Item':'item','Fecha creacion':'fecha_creacion',
   'Empresa que cotiza':'empresa','Project Manager':'project_manager',
   'Oportunidad':'oportunidad','Categoria':'categoria','Incoterm':'incoterm',
   'Descripcion':'descripcion','Cantidad':'cantidad','Costo compra':'costo_compra',
@@ -610,7 +629,7 @@ async function upsertRows(csvRows){
   for(let i = 0; i < dbRows.length; i += batchSize){
     const batch = dbRows.slice(i, i + batchSize);
     try {
-      const res = await fetch(SUPABASE_URL + '/rest/v1/project_lines?on_conflict=case_number,item', {
+      const res = await fetch(SUPABASE_URL + '/rest/v1/project_lines?on_conflict=id_project,item', {
         method: 'POST',
         headers: {
           ...supabaseHeaders,
@@ -726,7 +745,7 @@ function normalizeRow(r){
   return row;
 }
 
-function getRowKey(r){ return (r['Case #']||'') + '||' + (r['Item']||''); }
+function getRowKey(r){ return (r['ID Project + Case #']||'') + '||' + (r['Item']||''); }
 
 function saveToStorage(){ 
   try { localStorage.setItem('dashboard_avances_data', JSON.stringify(DATA)); } catch(e){} 
