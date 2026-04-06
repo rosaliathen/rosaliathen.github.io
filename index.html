@@ -541,7 +541,7 @@ const COL_MAP = {
   'CC Extendido':'cc_extendido','PV ofrecido':'pv_ofrecido','PV Extendido':'pv_extendido',
   'Margen %':'margen_pct','Status de linea':'status',
   'Fecha Cotizacion a cliente':'fecha_cotizacion','Antigüedad':'antiguedad',
-  'Mes':'mes','Trimestre':'trimestre','Rango Margen':'rango_margen'
+  'Mes':'mes','Trimestre':'trimestre','Año-Mes':'anio_mes','Rango Margen':'rango_margen'
 };
 
 // Reverse map: Supabase column → display header
@@ -772,8 +772,11 @@ function handleCSV(file, mode){
     
     const results = Papa.parse(text, {
       header: true,
-      skipEmptyLines: true,
-    });
+   skipEmptyLines: true,
+   delimiter: ';',
+   trimHeaders: true,
+ });
+
     
     if(!results.data || results.data.length === 0){
       showToast('Error: CSV is empty or could not be parsed');
