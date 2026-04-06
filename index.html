@@ -724,6 +724,22 @@ function cleanDate(v){
   return '';
 }
 
+// Generates a stable numeric ID from row content so the same row always
+// gets the same linea_num regardless of which file it came from.
+function rowContentHash(csvRow) {
+  const str = [
+    String(csvRow['ID Project + Case #'] || '').trim(),
+    String(csvRow['Descripcion']          || '').trim(),
+    String(csvRow['Item']                 || '').trim(),
+    String(csvRow['Cantidad']             || '').trim(),
+  ].join('\x00');
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = Math.imul(h, 33) ^ str.charCodeAt(i);
+  }
+  return (h >>> 0) || 1; // unsigned 32-bit, never 0
+}
+
 function normalizeRow(r){
   const row = {};
   Object.keys(r).forEach(k => { row[k.trim()] = r[k]; });
@@ -793,9 +809,9 @@ function handleCSV(file, mode){
     
     console.log('Parsed', results.data.length, 'rows. Delimiter:', JSON.stringify(results.meta.delimiter), 'Fields:', results.meta.fields);
     
-    const newRows = results.data.map((r, i) => {
+    const newRows = results.data.map((r) => {
       const row = normalizeRow(r);
-      row._linea_num = i + 1; // 1-based line number within this CSV upload
+      row._linea_num = rowContentHash(row); // stable hash: same row = same ID
       return row;
     });
     console.log('Sample cleaned row:', JSON.stringify(newRows[0]));
