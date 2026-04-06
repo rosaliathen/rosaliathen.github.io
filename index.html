@@ -737,7 +737,7 @@ function rowContentHash(csvRow) {
   for (let i = 0; i < str.length; i++) {
     h = Math.imul(h, 33) ^ str.charCodeAt(i);
   }
-  return (h >>> 0) || 1; // unsigned 32-bit, never 0
+  return Math.abs(h | 0) || 1; // signed 32-bit positive, fits PostgreSQL integer
 }
 
 function normalizeRow(r){
