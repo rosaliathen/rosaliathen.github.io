@@ -626,21 +626,36 @@ async function loadAllData(){
 
 async function upsertRows(csvRows){
   // Drop rows missing id_project or item — Supabase requires both
+  const skipped = [];
   const valid = csvRows.filter(r => {
     const hasProject = r['ID Project + Case #'] && String(r['ID Project + Case #']).trim() !== '';
     const hasItem    = r['Item'] && String(r['Item']).trim() !== '';
-    return hasProject && hasItem;
+    if(!hasProject || !hasItem){
+      skipped.push({ project: r['ID Project + Case #'], item: r['Item'], descripcion: r['Descripcion'] });
+      return false;
+    }
+    return true;
   });
-  if(valid.length < csvRows.length)
-    console.warn('Skipped ' + (csvRows.length - valid.length) + ' rows with empty ID Project or Item');
+  if(skipped.length > 0){
+    console.warn('⚠️ Skipped ' + skipped.length + ' rows (empty ID Project or Item):');
+    skipped.forEach((r,i) => console.warn('  Row ' + (i+1) + ':', JSON.stringify(r)));
+  }
   const allDbRows = valid.map(toSupabaseRow);
   // Deduplicate by (id_project, linea_num) — keeps last occurrence if hash collides
   const seen = new Map();
-  allDbRows.forEach(r => seen.set(r.id_project + '|' + r.linea_num, r));
+  const dupes = [];
+  allDbRows.forEach(r => {
+    const k = r.id_project + '|' + r.linea_num;
+    if(seen.has(k)) dupes.push({ id_project: r.id_project, item: r.item, descripcion: r.descripcion, linea_num: r.linea_num });
+    seen.set(k, r);
+  });
   const dbRows = Array.from(seen.values());
-  if(dbRows.length < allDbRows.length)
-    console.warn('Deduped ' + (allDbRows.length - dbRows.length) + ' duplicate rows within upload');
-  console.log('Upsert: ' + dbRows.length + ' rows prepared. Sample:', JSON.stringify(dbRows[0]));
+  if(dupes.length > 0){
+    console.warn('⚠️ Deduped ' + dupes.length + ' rows with duplicate hash (hash collision — review these rows):');
+    dupes.forEach((r,i) => console.warn('  Dupe ' + (i+1) + ':', JSON.stringify(r)));
+  }
+  console.log('📤 Upsert: ' + csvRows.length + ' total → ' + skipped.length + ' skipped → ' + dupes.length + ' deduped → ' + dbRows.length + ' sending to Supabase');
+  console.log('Sample row:', JSON.stringify(dbRows[0]));
   const batchSize = 500;
   let totalUpserted = 0;
   
