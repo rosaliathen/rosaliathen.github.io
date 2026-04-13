@@ -285,6 +285,7 @@ function updateFilterOptions(){
 
 // ======================== RENDER ========================
 function render(){
+  updateFilterOptions();
   const d = getFiltered();
   renderKPIs(d);
   renderPipeline(d);
