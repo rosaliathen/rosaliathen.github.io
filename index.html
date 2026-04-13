@@ -263,6 +263,26 @@ function getFiltered(){
   return d;
 }
 
+function updateFilterOptions(){
+  const selects = Array.from(document.querySelectorAll('.filter-select'));
+  selects.forEach(sel => {
+    const currentVal = sel.value;
+    const key = sel.dataset.key;
+    const label = sel.dataset.label || key;
+    // Options = unique values from DATA filtered by all OTHER active selects
+    let base = [...DATA];
+    selects.forEach(other => {
+      if(other !== sel && other.value){
+        base = base.filter(r => r[other.dataset.key] === other.value);
+      }
+    });
+    const opts = unique(base, key);
+    sel.innerHTML = `<option value="">All — ${label}</option>` +
+      opts.map(v => `<option value="${v}"${v === currentVal ? ' selected' : ''}>${v}</option>`).join('');
+    if(currentVal && !opts.includes(currentVal)) sel.value = '';
+  });
+}
+
 // ======================== RENDER ========================
 function render(){
   const d = getFiltered();
